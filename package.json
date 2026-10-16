@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Node's built-in test runner with ZERO dependencies — node:test, node:assert and the native mock/coverage support, as an alternative to Jest or Vitest",
+  "description": "Node's built-in test runner with ZERO dependencies \u2014 node:test, node:assert and the native mock/coverage support, as an alternative to Jest or Vitest",
   "engines": {
     "node": ">=20.11.0"
   },
@@ -18,13 +18,15 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "eslint": "^10.13.0",
     "eslint-config-prettier": "^10.1.8",
     "globals": "^17.13.0",
+    "husky": "^9.1.7",
     "prettier": "^3.9.10"
   }
 }
