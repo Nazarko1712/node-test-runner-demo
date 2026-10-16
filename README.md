@@ -1,0 +1,134 @@
+# node-test-runner-demo
+
+Node's **built-in** test runner, with **zero dependencies**. No Jest, no Vitest,
+no Chai, no Sinon, no transpile step — `node:test`, `node:assert`, and the
+runner's native mocking and coverage.
+
+```json
+"devDependencies": {}
+```
+
+**27 tests, 99.46% line coverage.** Nothing is installed; `node --test` is the
+whole toolchain.
+
+## Prerequisites
+
+| Requirement | Notes |
+|---|---|
+| **Node.js 20.11+** | `node:test` is stable from 20.0; `mock` and coverage need 20.11 |
+| **Nothing else** | no `npm install` required — there is nothing to install |
+| **No network** | the suite is entirely offline |
+
+## Running
+
+```bash
+node --test                               # everything
+node --test --watch                       # watch mode
+node --test --test-reporter=spec          # readable output (TAP is the default)
+node --test --experimental-test-coverage  # built-in coverage
+node --test --test-concurrency=4          # control parallelism
+node --test --test-only                   # honour test.only
+node --test test/sse.test.js              # a single file
+node --test --test-name-pattern="backoff" # filter by name
+```
+
+The npm scripts wrap the same commands, but the point of this repository is
+that they are not needed:
+
+```bash
+npm test
+npm run test:watch
+npm run test:coverage
+npm run test:junit     # JUnit XML for CI, also built in
+```
+
+## Why this exists
+
+Because "which test runner do you use" usually gets an answer from a list of
+three, and the fourth option ships with the platform. Being able to say *Node
+has had a built-in runner since v18, it is stable since v20, and here is a suite
+using it* is a short answer that lands.
+
+It is also genuinely the right choice sometimes: a library, a CLI, a small
+service, or any project where adding 300 transitive dependencies to test 200
+lines of code is the wrong trade.
+
+## What the runner gives you natively
+
+| Capability | API | Jest / Vitest equivalent |
+|---|---|---|
+| Suites and tests | `describe`, `it`, `test` | identical |
+| Assertions | `node:assert/strict` | `expect` |
+| Mock functions | `mock.fn()`, `mock.callCount()` | `jest.fn()` / `vi.fn()` |
+| Spies on methods | `mock.method()` | `jest.spyOn` / `vi.spyOn` |
+| Fake timers | `mock.timers` | `jest.useFakeTimers` |
+| Skip / todo / only | `test.skip`, `test.todo`, `test.only` | identical |
+| Concurrency | `--test-concurrency`, `{ concurrency: true }` | `maxWorkers` |
+| Coverage | `--experimental-test-coverage` | `--coverage` |
+| Reporters | `tap`, `spec`, `dot`, `junit`, custom | reporters |
+| Watch | `--watch` | `--watch` |
+
+**`test.only` requires the `--test-only` flag.** That is a deliberate guard: a
+forgotten `.only` cannot silently shrink a CI run the way it can in Jest, where
+`forbidOnly` has to be configured to get the same protection.
+
+## What it does not give you
+
+Worth being straight about, because the answer to "why not always use it" is a
+real list:
+
+- **No `expect` API.** `node:assert` is adequate but blunter; matchers like
+  `toMatchObject` or `toHaveBeenCalledWith` have to be written by hand.
+- **No snapshot testing** before Node 22, and it is still basic.
+- **No jsdom / browser environment.** Node only — this is not a front-end
+  component testing tool.
+- **No module mocking** that matches `jest.mock`. `mock.module` exists but is
+  experimental and clumsier.
+- **Smaller ecosystem.** No Allure plugin, no `expect-webdriverio`, far fewer
+  reporters.
+
+So: good for libraries, CLIs and pure logic. Reach for Jest or Vitest when you
+need matchers, module mocking or a browser environment.
+
+## What is under test
+
+Two utilities a test engineer actually ends up owning, rather than a toy.
+
+### `src/retry.js` — retry with exponential backoff
+
+Retrying is where suites hide their worst bugs, and each one is asserted:
+
+- **a backoff that never backs off** — `assert.deepEqual(delays, [10, 20, 40])`
+  is the test that catches it, and the one most retry helpers lack
+- **a cap that does not cap** — `[100, 500, 500, 500]` with `maxDelayMs: 500`
+- **jitter that is not random** — made assertable by injecting the random
+  source, so `random: () => 1` and `random: () => 0` give deterministic bounds
+- **an abort that is ignored** — an already-aborted signal must produce **zero**
+  calls, asserted with `callCount() === 0`, because a cancelled request must not
+  reach the network even once
+- **retrying what can never succeed** — `retryOn` stops on a 4xx after one
+  attempt instead of multiplying wasted calls
+- **an error that hides its cause** — the thrown `RetryError` must name the
+  original failure, the attempt count and the last error
+
+### `src/sse.js` — Server-Sent Events wire-format parser
+
+The same format the
+[Playwright project](https://github.com/Nazarko1712/playwright-ts-testing)
+consumes over a real socket, isolated as a pure function so the parsing rules
+can be asserted directly:
+
+- a blank line terminates an event; without one, nothing is dispatched
+- `data:` may repeat and the values join with `\n` — getting this wrong corrupts
+  every pretty-printed JSON payload
+- **exactly one** leading space is stripped, not all whitespace, so
+  `data:  two spaces` keeps the second one
+- a `:`-prefixed line is a keep-alive comment and is ignored
+- a block with no `data` field dispatches **nothing** — a `retry:`-only block
+  adjusts the reconnect interval, and returning an empty event there would
+  surface a phantom message
+- an unknown field is ignored rather than throwing, so a server adding a field
+  does not break an existing client
+- **chunk boundaries do not align with event boundaries.** A real socket splits
+  wherever it likes, so the parser buffers; `handles a chunk boundary that
+  splits a field in half` is the test that proves it.

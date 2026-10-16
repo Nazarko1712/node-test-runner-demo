@@ -1,0 +1,27 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        # The runner's API moved between majors, so both supported lines are
+        # exercised rather than assumed compatible.
+        node: [20, 22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      # No install step: there are no dependencies.
+      - name: Run suite
+        run: node --test --test-reporter=spec
+      - name: Coverage
+        run: node --test --experimental-test-coverage
