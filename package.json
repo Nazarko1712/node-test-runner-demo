@@ -1,0 +1,20 @@
+{
+  "name": "node-test-runner-demo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Node's built-in test runner with ZERO dependencies — node:test, node:assert and the native mock/coverage support, as an alternative to Jest or Vitest",
+  "engines": {
+    "node": ">=20.11.0"
+  },
+  "scripts": {
+    "test": "node --test",
+    "test:watch": "node --test --watch",
+    "test:coverage": "node --test --experimental-test-coverage",
+    "test:only": "node --test --test-only",
+    "test:reporter": "node --test --test-reporter=spec",
+    "test:junit": "node --test --test-reporter=junit --test-reporter-destination=test-results.xml",
+    "test:concurrency": "node --test --test-concurrency=4"
+  },
+  "devDependencies": {}
+}
