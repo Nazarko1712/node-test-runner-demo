@@ -120,12 +120,17 @@ describe('retry', () => {
         it('grows the delay exponentially', async () => {
             const delays = [];
             await assert.rejects(() =>
-                retry(async () => { throw new Error('nope'); }, {
-                    attempts: 4,
-                    baseDelayMs: 10,
-                    factor: 2,
-                    onRetry: ({ delayMs }) => delays.push(delayMs),
-                }),
+                retry(
+                    async () => {
+                        throw new Error('nope');
+                    },
+                    {
+                        attempts: 4,
+                        baseDelayMs: 10,
+                        factor: 2,
+                        onRetry: ({ delayMs }) => delays.push(delayMs),
+                    },
+                ),
             );
 
             // 10, 20, 40 — the assertion that catches a backoff which never
@@ -136,13 +141,18 @@ describe('retry', () => {
         it('caps the delay at maxDelayMs', async () => {
             const delays = [];
             await assert.rejects(() =>
-                retry(async () => { throw new Error('nope'); }, {
-                    attempts: 5,
-                    baseDelayMs: 100,
-                    factor: 10,
-                    maxDelayMs: 500,
-                    onRetry: ({ delayMs }) => delays.push(delayMs),
-                }),
+                retry(
+                    async () => {
+                        throw new Error('nope');
+                    },
+                    {
+                        attempts: 5,
+                        baseDelayMs: 100,
+                        factor: 10,
+                        maxDelayMs: 500,
+                        onRetry: ({ delayMs }) => delays.push(delayMs),
+                    },
+                ),
             );
 
             assert.deepEqual(delays, [100, 500, 500, 500]);
@@ -151,16 +161,21 @@ describe('retry', () => {
         it('applies jitter deterministically when random is injected', async () => {
             const delays = [];
             await assert.rejects(() =>
-                retry(async () => { throw new Error('nope'); }, {
-                    attempts: 3,
-                    baseDelayMs: 100,
-                    factor: 1,
-                    jitter: 0.5,
-                    // Injecting the source of randomness is what makes a jitter
-                    // test assertable at all.
-                    random: () => 1,
-                    onRetry: ({ delayMs }) => delays.push(delayMs),
-                }),
+                retry(
+                    async () => {
+                        throw new Error('nope');
+                    },
+                    {
+                        attempts: 3,
+                        baseDelayMs: 100,
+                        factor: 1,
+                        jitter: 0.5,
+                        // Injecting the source of randomness is what makes a jitter
+                        // test assertable at all.
+                        random: () => 1,
+                        onRetry: ({ delayMs }) => delays.push(delayMs),
+                    },
+                ),
             );
 
             // jitter 0.5 with random()=1 -> full base delay
@@ -170,14 +185,19 @@ describe('retry', () => {
         it('jitter of 0.5 with random()=0 halves the delay', async () => {
             const delays = [];
             await assert.rejects(() =>
-                retry(async () => { throw new Error('nope'); }, {
-                    attempts: 2,
-                    baseDelayMs: 100,
-                    factor: 1,
-                    jitter: 0.5,
-                    random: () => 0,
-                    onRetry: ({ delayMs }) => delays.push(delayMs),
-                }),
+                retry(
+                    async () => {
+                        throw new Error('nope');
+                    },
+                    {
+                        attempts: 2,
+                        baseDelayMs: 100,
+                        factor: 1,
+                        jitter: 0.5,
+                        random: () => 0,
+                        onRetry: ({ delayMs }) => delays.push(delayMs),
+                    },
+                ),
             );
 
             assert.deepEqual(delays, [50]);
@@ -218,10 +238,7 @@ describe('retry', () => {
     });
 
     it('rejects an invalid attempt count', async () => {
-        await assert.rejects(
-            () => retry(async () => 'x', { attempts: 0 }),
-            TypeError,
-        );
+        await assert.rejects(() => retry(async () => 'x', { attempts: 0 }), TypeError);
     });
 });
 

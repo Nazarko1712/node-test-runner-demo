@@ -95,18 +95,27 @@ describe('SSE incremental parsing', () => {
 
         const events = parser.push('data: one\n\ndata: two\n\ndata: three\n\n');
 
-        assert.deepEqual(events.map((e) => e.data), ['one', 'two', 'three']);
+        assert.deepEqual(
+            events.map((e) => e.data),
+            ['one', 'two', 'three'],
+        );
     });
 
     it('keeps a trailing partial event buffered across chunks', () => {
         const parser = new SseParser();
 
         const first = parser.push('data: complete\n\ndata: partial');
-        assert.deepEqual(first.map((e) => e.data), ['complete']);
+        assert.deepEqual(
+            first.map((e) => e.data),
+            ['complete'],
+        );
         assert.equal(parser.pending, 'data: partial');
 
         const second = parser.push('\n\n');
-        assert.deepEqual(second.map((e) => e.data), ['partial']);
+        assert.deepEqual(
+            second.map((e) => e.data),
+            ['partial'],
+        );
     });
 
     it('skips blocks that carry no data while keeping the ones that do', () => {

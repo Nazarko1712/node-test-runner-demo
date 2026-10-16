@@ -13,11 +13,11 @@ whole toolchain.
 
 ## Prerequisites
 
-| Requirement | Notes |
-|---|---|
+| Requirement        | Notes                                                           |
+| ------------------ | --------------------------------------------------------------- |
 | **Node.js 20.11+** | `node:test` is stable from 20.0; `mock` and coverage need 20.11 |
-| **Nothing else** | no `npm install` required — there is nothing to install |
-| **No network** | the suite is entirely offline |
+| **Nothing else**   | no `npm install` required — there is nothing to install         |
+| **No network**     | the suite is entirely offline                                   |
 
 ## Running
 
@@ -45,9 +45,9 @@ npm run test:junit     # JUnit XML for CI, also built in
 ## Why this exists
 
 Because "which test runner do you use" usually gets an answer from a list of
-three, and the fourth option ships with the platform. Being able to say *Node
+three, and the fourth option ships with the platform. Being able to say _Node
 has had a built-in runner since v18, it is stable since v20, and here is a suite
-using it* is a short answer that lands.
+using it_ is a short answer that lands.
 
 It is also genuinely the right choice sometimes: a library, a CLI, a small
 service, or any project where adding 300 transitive dependencies to test 200
@@ -55,18 +55,18 @@ lines of code is the wrong trade.
 
 ## What the runner gives you natively
 
-| Capability | API | Jest / Vitest equivalent |
-|---|---|---|
-| Suites and tests | `describe`, `it`, `test` | identical |
-| Assertions | `node:assert/strict` | `expect` |
-| Mock functions | `mock.fn()`, `mock.callCount()` | `jest.fn()` / `vi.fn()` |
-| Spies on methods | `mock.method()` | `jest.spyOn` / `vi.spyOn` |
-| Fake timers | `mock.timers` | `jest.useFakeTimers` |
-| Skip / todo / only | `test.skip`, `test.todo`, `test.only` | identical |
-| Concurrency | `--test-concurrency`, `{ concurrency: true }` | `maxWorkers` |
-| Coverage | `--experimental-test-coverage` | `--coverage` |
-| Reporters | `tap`, `spec`, `dot`, `junit`, custom | reporters |
-| Watch | `--watch` | `--watch` |
+| Capability         | API                                           | Jest / Vitest equivalent  |
+| ------------------ | --------------------------------------------- | ------------------------- |
+| Suites and tests   | `describe`, `it`, `test`                      | identical                 |
+| Assertions         | `node:assert/strict`                          | `expect`                  |
+| Mock functions     | `mock.fn()`, `mock.callCount()`               | `jest.fn()` / `vi.fn()`   |
+| Spies on methods   | `mock.method()`                               | `jest.spyOn` / `vi.spyOn` |
+| Fake timers        | `mock.timers`                                 | `jest.useFakeTimers`      |
+| Skip / todo / only | `test.skip`, `test.todo`, `test.only`         | identical                 |
+| Concurrency        | `--test-concurrency`, `{ concurrency: true }` | `maxWorkers`              |
+| Coverage           | `--experimental-test-coverage`                | `--coverage`              |
+| Reporters          | `tap`, `spec`, `dot`, `junit`, custom         | reporters                 |
+| Watch              | `--watch`                                     | `--watch`                 |
 
 **`test.only` requires the `--test-only` flag.** That is a deliberate guard: a
 forgotten `.only` cannot silently shrink a CI run the way it can in Jest, where
@@ -131,4 +131,53 @@ can be asserted directly:
   does not break an existing client
 - **chunk boundaries do not align with event boundaries.** A real socket splits
   wherever it likes, so the parser buffers; `handles a chunk boundary that
-  splits a field in half` is the test that proves it.
+splits a field in half` is the test that proves it.
+
+## Linting and reports
+
+```bash
+npm run lint          # ESLint 9, flat config
+npm run lint:fix
+npm run format        # Prettier, writes
+npm run format:check  # Prettier, reports (this is what CI runs)
+npm run test:junit    # JUnit XML via the built-in reporter
+```
+
+The point of this repo is that `node --test` needs no dependencies, so the lint
+setup stays in the same spirit: two ESLint packages, Prettier, and no plugin for
+the runner itself. `node:test` does not need one — `only` is inert unless you
+pass `--test-only`, so there is no `no-focused-tests` failure mode to guard
+against. That is a genuine design advantage over Jest's `test.only`, which
+silently reduces a CI run to one test.
+
+`require-await` is **on in `src/`, off in `test/`**, with the reason in the
+config. Every hit in `retry.test.js` was the same shape:
+
+```js
+const operation = mock.fn(async () => 'ok');
+```
+
+The `async` is the point: `retry()` is contracted to accept an operation that
+returns a Promise, and a mock returning a bare value models a different contract
+than the one under test. Without type information the rule cannot tell "async
+because the signature demands it" from "async by accident", so in a file of
+hand-written async mocks it is wrong far more often than right. Thirteen inline
+disables would be noise nobody reads; one scoped exemption with its reasoning
+attached is honest.
+
+### Reports
+
+The runner ships reporters: `spec` and `dot` for humans, `junit` for CI, `tap`
+because `node:test` speaks TAP natively. No `jest-junit`, no `mochawesome` — one
+more thing the standard library already covers.
+
+### Where this runs in CI
+
+Linting and formatting are their **own job**, not steps inside the test job.
+They need no browser, no network and no secrets, and they finish in seconds, so
+as a separate job they run concurrently with the suite: a formatting failure
+does not wait behind a long test run, and a real test failure is not hidden
+behind a formatting failure. Both verdicts arrive on their own.
+
+CI runs the `--check` variants, never the formatter itself. A pipeline reports
+on the branch it was asked to verify; it does not rewrite it.
